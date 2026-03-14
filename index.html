@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PGN Merger</title>
+<style>
+/* ── Reset & Variables ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #f0ede8;
+  --surface:  #ffffff;
+  --card:     #ffffff;
+  --card-emp: #f7f5f2;
+  --border:   #d6d1cb;
+  --border-hi:#b8b2aa;
+  --accent:   #629924;
+  --acc-bg:   rgba(98,153,36,.10);
+  --acc-bdr:  rgba(98,153,36,.35);
+  --text:     #282420;
+  --muted:    #7a746c;
+  --dim:      #b0a89e;
+  --green:    #629924;
+  --red:      #882e2e;
+  --warn:     #8a5e10;
+  --mono:     'Courier New', monospace;
+  --r:        4px;
+}
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+header {
+  height: 44px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+header h1 { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+header h1 span { color: var(--accent); }
+header .tagline {
+  font-size: 11.5px;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+}
+header a {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--dim);
+  text-decoration: none;
+}
+header a:hover { color: var(--accent); text-decoration: underline; }
+
+/* ── Workspace ─────────────────────────────────────────────────────── */
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+}
+.divider { background: var(--border); }
+
+/* ── Panel ─────────────────────────────────────────────────────────── */
+.panel { display: flex; flex-direction: column; min-height: 0; }
+
+.panel-head {
+  height: 46px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 6px;
+}
+.panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--bg);
+}
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Buttons ───────────────────────────────────────────────────────── */
+.btn {
+  font-size: 12.5px;
+  padding: 4px 11px;
+  border: 1px solid var(--border-hi);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--r);
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.5;
+  transition: background .1s, border-color .1s;
+}
+.btn:hover:not(:disabled) { background: #f5f2ee; border-color: var(--muted); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--acc-bg);
+  border-color: var(--acc-bdr);
+  color: var(--green);
+  font-weight: 600;
+}
+.btn-primary:hover:not(:disabled) { background: rgba(98,153,36,.18); }
+
+.btn-export {
+  border-color: var(--acc-bdr);
+  color: var(--green);
+}
+.btn-export:hover:not(:disabled) { background: var(--acc-bg); }
+
+#status {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+#status .ok   { color: var(--green); font-weight: 600; }
+#status .warn { color: var(--warn);  font-weight: 600; }
+
+/* ── Drop Zone ─────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--r);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 2;
+  transition: border-color .12s, background .12s;
+  background: var(--card);
+}
+.drop-zone small { color: var(--dim); font-size: 11px; display: block; line-height: 1.8; }
+.drop-zone.over { border-color: var(--accent); background: var(--acc-bg); color: var(--accent); }
+
+/* ── Game Cards (shared base) ──────────────────────────────────────── */
+.game-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--card);
+  margin-bottom: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── LEFT card ─────────────────────────────────────────────────────── */
+.left-card .lc-result {
+  width: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--border);
+  background: #fafaf8;
+}
+
+.left-card .lc-body {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 9px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  text-align: right;
+}
+
+.lc-line1, .lc-line2 {
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lc-line1 .lc-num   { font-size: 10px; color: var(--dim); }
+.lc-line1 .lc-name  { font-weight: 600; }
+.lc-line2           { font-size: 10px; color: var(--muted); }
+.vs                 { color: var(--dim); font-weight: 400; }
+
+/* ── RIGHT card ────────────────────────────────────────────────────── */
+.right-card .rc-result {
+  width: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--border);
+  background: #fafaf8;
+  order: 3;
+}
+
+.right-card .rc-drag {
+  width: 20px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--dim);
+  font-size: 13px;
+  border-right: 1px solid var(--border);
+  background: #fafaf8;
+  user-select: none;
+  transition: color .1s, background .1s;
+}
+.right-card .rc-drag:hover  { color: var(--muted); background: #f3f0eb; }
+.right-card .rc-drag:active { cursor: grabbing; }
+
+.right-card .rc-body {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Row 1: players line + × button */
+.rc-row1 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.rc-row1-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.rc-row1-text .rc-num  { font-size: 10px; color: var(--dim); }
+.rc-row1-text .rc-name { font-weight: 600; }
+
+/* Row 2: moves preview */
+.rc-row2 {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+
+.x-btn {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--dim);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  transition: all .1s;
+}
+.x-btn:hover { border-color: var(--red); color: var(--red); }
+
+.unpaired-tag {
+  font-size: 9.5px;
+  color: var(--dim);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.right-card.empty-game { background: var(--card-emp); border-style: dashed; }
+.right-card.dragging    { opacity: .3; }
+.right-card.drop-before { border-top: 2px solid var(--accent); }
+.right-card.unpaired    { opacity: .5; }
+
+/* ── Result badge ──────────────────────────────────────────────────── */
+.rbadge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #eee;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rbadge.ww { background: #edf6e4; color: var(--green); }
+.rbadge.wb { background: #f9ebeb; color: var(--red); }
+.rbadge.wd { background: #f5f0e4; color: var(--warn); }
+
+/* ── Insert slot ───────────────────────────────────────────────────── */
+.ins-row {
+  display: flex;
+  align-items: center;
+  height: 17px;          /* fixed — left panel spacers must match */
+  opacity: 0;
+  transition: opacity .15s;
+}
+.ins-row:hover { opacity: 1; }
+/* Left panel spacer — same 17px, no hover interaction */
+.lc-spacer { height: 17px; }
+.ins-line { flex: 1; height: 1px; background: var(--border); }
+.ins-btn {
+  font-size: 10px;
+  padding: 0 8px;
+  margin: 0 4px;
+  background: var(--card);
+  border: 1px solid var(--border-hi);
+  color: var(--muted);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all .1s;
+  line-height: 1.8;
+}
+.ins-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--acc-bg); }
+
+/* ── Result section ────────────────────────────────────────────────── */
+#result-sec {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 10px 16px 12px;
+  display: none;
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.result-head h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.result-head .info { font-size: 11px; color: var(--dim); font-family: var(--mono); }
+.result-head .btns { margin-left: auto; display: flex; gap: 6px; }
+#result-ta {
+  width: 100%;
+  height: 160px;
+  border: 1px solid var(--border);
+  background: #fafaf8;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 10px;
+  border-radius: var(--r);
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(50px);
+  background: #2d2a26;
+  color: #f0ede8;
+  padding: 5px 18px;
+  border-radius: 20px;
+  font-size: 12px;
+  pointer-events: none;
+  transition: transform .2s ease;
+  z-index: 200;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <h1>PGN <span>Merger</span></h1>
+  <span class="tagline">Sloučení šachových databází</span>
+  <a href="bookmarklet.html" target="_blank">Instalace bookmarkletu →</a>
+</header>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- LEFT PANEL -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="panel-label">Hlavičky partií</span>
+      <button class="btn" onclick="document.getElementById('fl').click()">Načíst PGN</button>
+      <button class="btn" id="btn-clr-l" style="display:none" onclick="clearLeft()">Vymazat</button>
+      <input type="file" id="fl" accept=".pgn,.txt" onchange="onFileLeft(event)">
+    </div>
+    <div class="panel-body" id="body-l">
+      <div class="drop-zone" id="dz-l">
+        Přetáhněte PGN soubor sem<br>nebo použijte tlačítko výše
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- RIGHT PANEL -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="panel-label">Partie (tahy)</span>
+      <button class="btn" onclick="document.getElementById('fr').click()">Přidat PGN</button>
+      <button class="btn" id="btn-clr-r" style="display:none" onclick="clearRight()">Vymazat vše</button>
+      <input type="file" id="fr" accept=".pgn,.txt" multiple onchange="onFileRight(event)">
+      <!-- Action buttons on the right -->
+      <span id="status" style="margin-left:auto;margin-right:8px"></span>
+      <button class="btn btn-primary" id="btn-merge" disabled onclick="doMerge()">Zkopíruj hlavičky</button>
+      <button class="btn btn-export"  id="btn-dl"    disabled onclick="doDownload()">Stáhnout</button>
+      <button class="btn"             id="btn-cp"    disabled onclick="doCopy()">Kopírovat</button>
+    </div>
+    <div class="panel-body" id="body-r">
+      <div class="drop-zone" id="dz-r">
+        Přetáhněte PGN soubor sem<br>nebo použijte tlačítko výše<br>
+        <small>Lze přidat více souborů postupně</small>
+      </div>
+    </div>
+  </section>
+
+</div><!-- .workspace -->
+
+<!-- RESULT SECTION -->
+<div id="result-sec">
+  <div class="result-head">
+    <h3>Výsledek sloučení</h3>
+    <span class="info" id="result-info"></span>
+    <div class="btns">
+      <button class="btn btn-export" onclick="doDownload()">Stáhnout PGN</button>
+      <button class="btn"            onclick="doCopy()">Kopírovat</button>
+    </div>
+  </div>
+  <textarea id="result-ta" readonly spellcheck="false"></textarea>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════════ */
+let leftGames  = [];   // [{tags, moves, result}]
+let rightGames = [];   // [{tags, moves, result, isEmpty}]
+let mergedPGN  = '';
+
+/* ═══════════════════════════════════════════════════════════════════
+   PGN PARSER
+═══════════════════════════════════════════════════════════════════ */
+
+function stripComments(txt) {
+  // Remove { } comments (not nested)
+  return txt.replace(/\{[^}]*\}/g, ' ');
+}
+
+function stripVariations(txt) {
+  // Remove ( ) variations — handle nesting with a simple state machine
+  let out = '', depth = 0;
+  for (const ch of txt) {
+    if      (ch === '(') depth++;
+    else if (ch === ')') { if (depth > 0) depth--; }
+    else if (depth === 0) out += ch;
+  }
+  return out;
+}
+
+function parseMovetext(raw) {
+  let t = raw.replace(/^%[^\n]*/gm, ' ');   // % escape lines
+  t = stripComments(t);
+  t = stripVariations(t);
+  t = t.replace(/\$\d+/g, ' ');             // NAG tokens
+  t = t.replace(/\s+/g, ' ').trim();
+
+  const moves = [];
+  let expectColor = 'w';
+  let curNum      = 1;
+
+  for (const tok of t.split(' ')) {
+    if (!tok) continue;
+    if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tok)) break;
+
+    // Move number: "5." or "5..."
+    const nm = tok.match(/^(\d+)(\.+)$/);
+    if (nm) {
+      curNum      = parseInt(nm[1], 10);
+      expectColor = nm[2].length >= 3 ? 'b' : 'w';
+      continue;
+    }
+
+    // SAN token
+    if (/^([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBN])?[+#]?|O-O-O[+#]?|O-O[+#]?)$/.test(tok)) {
+      moves.push({ number: curNum, color: expectColor, san: tok });
+      if (expectColor === 'w') { expectColor = 'b'; }
+      else { expectColor = 'w'; curNum++; }
+    }
+  }
+  return moves;
+}
+
+function splitGames(text) {
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (/\[Event\s+"/i.test(text)) {
+    return text.split(/\n(?=\s*\[Event\s+")/i).map(s => s.trim()).filter(Boolean);
+  }
+  return text.split(/\n\s*\n(?=\s*\[)/).map(s => s.trim()).filter(Boolean);
+}
+
+function parseOneGame(text) {
+  text = text.trim();
+  if (!text) return null;
+
+  const tags  = {};
+  const tagRe = /\[(\w+)\s+"([^"]*)"\]/g;
+  let m, lastEnd = 0;
+  while ((m = tagRe.exec(text)) !== null) {
+    tags[m[1]] = m[2];
+    lastEnd    = tagRe.lastIndex;
+  }
+
+  const movetext = text.slice(lastEnd).trim();
+  const moves    = parseMovetext(movetext);
+  const result   = tags['Result']
+    || (movetext.match(/(1-0|0-1|1\/2-1\/2|\*)\s*$/) || [])[1]
+    || '*';
+
+  if (!Object.keys(tags).length && !moves.length) return null;
+  return { tags, moves, result, isEmpty: false };
+}
+
+function parsePGN(text) {
+  return splitGames(text).map(parseOneGame).filter(Boolean);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PGN SERIALIZER
+═══════════════════════════════════════════════════════════════════ */
+
+const TAG_ORDER = [
+  'Event','Site','Date','Round','Board',
+  'White','Black','WhiteElo','BlackElo',
+  'WhiteTeam','BlackTeam','ECO','Result'
+];
+
+function serializeGame(game) {
+  const orderedKeys = [
+    ...TAG_ORDER.filter(k => k in game.tags),
+    ...Object.keys(game.tags).filter(k => !TAG_ORDER.includes(k))
+  ];
+
+  let pgn = orderedKeys.map(k => `[${k} "${game.tags[k]}"]\n`).join('');
+  pgn += '\n';
+
+  if (game.moves && game.moves.length) {
+    let prevNum = null;
+    for (const mv of game.moves) {
+      if (mv.color === 'w') {
+        pgn += `${mv.number}. ${mv.san} `;
+        prevNum = mv.number;
+      } else {
+        pgn += (prevNum !== mv.number ? `${mv.number}... ` : '') + `${mv.san} `;
+        prevNum = null;
+      }
+    }
+  }
+
+  pgn += game.result + '\n';
+  return pgn;
+}
+
+function serializeAll(games) {
+  return games.map(serializeGame).join('\n');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════════════════ */
+
+function movesPreview(moves, max = 10) {
+  if (!moves || !moves.length) return '';
+  let s = '', n = 0;
+  for (const mv of moves) {
+    if (n >= max) { s += ' \u2026'; break; }
+    s += (mv.color === 'w' ? `${mv.number}.\u202f` : '') + mv.san + ' ';
+    n++;
+  }
+  return s.trim();
+}
+
+function resBadge(r) {
+  if (r === '1-0')      return 'ww';
+  if (r === '0-1')      return 'wb';
+  if (r === '1/2-1/2')  return 'wd';
+  return '';
+}
+
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function emptyGame() {
+  return { tags: {}, moves: [], result: '*', isEmpty: true };
+}
+
+// Extract "Home - Away" filename from first left game
+function suggestFilename() {
+  if (!leftGames.length) return 'merged.pgn';
+  const g = leftGames[0];
+  // Try Event tag: often "Competition, Home - Away"
+  if (g.tags.Event) {
+    const ev = g.tags.Event;
+    const ci = ev.lastIndexOf(', ');
+    const teams = ci >= 0 ? ev.slice(ci + 2) : ev;
+    if (teams.includes(' - ')) return teams + '.pgn';
+  }
+  // Fallback to WhiteTeam/BlackTeam of first game
+  if (g.tags.WhiteTeam && g.tags.BlackTeam) {
+    return `${g.tags.WhiteTeam} - ${g.tags.BlackTeam}.pgn`;
+  }
+  return 'merged.pgn';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER — LEFT PANEL
+═══════════════════════════════════════════════════════════════════ */
+
+function renderLeft() {
+  const body = document.getElementById('body-l');
+  document.getElementById('btn-clr-l').style.display = leftGames.length ? '' : 'none';
+
+  if (!leftGames.length) {
+    body.innerHTML = '<div class="drop-zone" id="dz-l">Přetáhněte PGN soubor sem<br>nebo použijte tlačítko výše</div>';
+    dzListen('dz-l', loadLeft);
+    return;
+  }
+
+  body.innerHTML = '';
+
+  // Top spacer — mirrors the first ins-slot on the right panel
+  body.appendChild(Object.assign(document.createElement('div'), { className: 'lc-spacer' }));
+
+  leftGames.forEach((g, i) => {
+    const res   = g.result || '*';
+    const white = g.tags.White     || '?';
+    const black = g.tags.Black     || '?';
+    const ev    = g.tags.Event     || '';
+    const wt    = g.tags.WhiteTeam || '';
+    const bt    = g.tags.BlackTeam || '';
+
+    const div = document.createElement('div');
+    div.className = 'game-card left-card';
+
+    const line2Parts = [];
+    if (ev)       line2Parts.push(esc(ev));
+    if (wt || bt) line2Parts.push(esc(wt) + '\u2013' + esc(bt));
+    const line2 = line2Parts.join(' \u00b7 ');
+
+    const board = g.tags.Round || g.tags.Board || '';
+
+    div.innerHTML = `
+      <div class="lc-result">
+        <span class="rbadge ${resBadge(res)}">${esc(res)}</span>
+      </div>
+      <div class="lc-body">
+        <div class="lc-line1"><span class="lc-name">${esc(white)}</span> <span class="vs">&ndash;</span> <span class="lc-name">${esc(black)}</span>${board ? `<span class="lc-num">&nbsp; ${esc(board)}</span>` : ''}</div>
+        <div class="lc-line2">${line2 || '&nbsp;'}</div>
+      </div>`;
+    body.appendChild(div);
+
+    // Spacer after each card (mirrors ins-slot on the right)
+    body.appendChild(Object.assign(document.createElement('div'), { className: 'lc-spacer' }));
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RENDER — RIGHT PANEL
+═══════════════════════════════════════════════════════════════════ */
+
+function renderRight() {
+  const body = document.getElementById('body-r');
+  document.getElementById('btn-clr-r').style.display = rightGames.length ? '' : 'none';
+
+  if (!rightGames.length) {
+    body.innerHTML = `<div class="drop-zone" id="dz-r">
+      Přetáhněte PGN soubor sem<br>nebo použijte tlačítko výše<br>
+      <small>Lze přidat více souborů postupně</small>
+    </div>`;
+    dzListen('dz-r', addRight);
+    return;
+  }
+
+  body.innerHTML = '';
+  body.appendChild(insSlot(-1));   // top slot before first card
+
+  rightGames.forEach((g, i) => {
+    const paired = i < leftGames.length;
+    const res    = g.result || '*';
+    const white  = g.isEmpty ? '' : (g.tags.White     || '?');
+    const black  = g.isEmpty ? '' : (g.tags.Black     || '?');
+    const ev     = g.isEmpty ? '' : (g.tags.Event     || '');
+    const wt     = g.isEmpty ? '' : (g.tags.WhiteTeam || '');
+    const bt     = g.isEmpty ? '' : (g.tags.BlackTeam || '');
+    const prev   = g.isEmpty ? '' : movesPreview(g.moves);
+
+    const card = document.createElement('div');
+    // Right card row texts
+    card.className = 'game-card right-card' +
+      (g.isEmpty ? ' empty-game' : '') +
+      (!paired   ? ' unpaired'   : '');
+    card.draggable = true;
+    card.dataset.idx = i;
+    attachDnD(card, i);
+
+    // Right card row texts
+    const row1text = g.isEmpty
+      ? `<span style="color:var(--dim);font-style:italic">&mdash; prázdná partie &mdash;</span>`
+      : `<span class="rc-num">#${i + 1}&nbsp;</span><span class="rc-name">${esc(white)}</span> <span class="vs">&ndash;</span> <span class="rc-name">${esc(black)}</span>${ev ? `<span class="rc-num"> &middot; ${esc(ev)}</span>` : ''}`;
+
+    card.innerHTML = `
+      <div class="rc-drag" title="Přetáhnout">&#x2807;</div>
+      <div class="rc-body">
+        <div class="rc-row1">
+          <div class="rc-row1-text">${row1text}</div>
+          ${!paired ? `<span class="unpaired-tag">nevyexportuje se</span>` : ''}
+          <button class="x-btn" title="Odebrat" onclick="removeRight(${i})">&#215;</button>
+        </div>
+        <div class="rc-row2">${g.isEmpty ? '&nbsp;' : esc(prev)}</div>
+      </div>
+      <div class="rc-result">
+        <span class="rbadge ${resBadge(res)}">${esc(res)}</span>
+      </div>`;
+
+    body.appendChild(card);
+    body.appendChild(insSlot(i));
+  });
+
+  updateStatus();
+}
+
+function insSlot(afterIdx) {
+  const d = document.createElement('div');
+  d.className = 'ins-row';
+  d.innerHTML = `
+    <div class="ins-line"></div>
+    <button class="ins-btn" onclick="insertEmpty(${afterIdx + 1})">+ prázdná partie</button>
+    <div class="ins-line"></div>`;
+  return d;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DRAG & DROP — REORDER
+═══════════════════════════════════════════════════════════════════ */
+let dragSrc = null;
+
+function attachDnD(card, idx) {
+  card.addEventListener('dragstart', e => {
+    // Only react if drag starts on the handle or card (not a button)
+    dragSrc = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(idx));
+    requestAnimationFrame(() => card.classList.add('dragging'));
+  });
+
+  card.addEventListener('dragover', e => {
+    if (dragSrc === null) return;   // file drag from OS — ignore
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.right-card').forEach(c => c.classList.remove('drop-before'));
+    if (idx !== dragSrc) card.classList.add('drop-before');
+  });
+
+  card.addEventListener('dragleave', e => {
+    if (!card.contains(e.relatedTarget)) card.classList.remove('drop-before');
+  });
+
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    document.querySelectorAll('.right-card').forEach(c =>
+      c.classList.remove('drop-before', 'dragging'));
+    if (dragSrc === null || dragSrc === idx) { dragSrc = null; return; }
+
+    const item = rightGames.splice(dragSrc, 1)[0];
+    const dest = dragSrc < idx ? idx - 1 : idx;
+    rightGames.splice(dest, 0, item);
+    dragSrc = null;
+    renderRight();
+  });
+
+  card.addEventListener('dragend', () => {
+    document.querySelectorAll('.right-card').forEach(c =>
+      c.classList.remove('drop-before', 'dragging'));
+    dragSrc = null;
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STATUS
+═══════════════════════════════════════════════════════════════════ */
+
+function updateStatus() {
+  const lN = leftGames.length;
+  const rN = rightGames.filter(g => !g.isEmpty).length + rightGames.filter(g => g.isEmpty).length;
+  const rTotal = rightGames.length;
+  const el = document.getElementById('status');
+  const btnMerge = document.getElementById('btn-merge');
+
+  if (!lN && !rTotal) {
+    el.innerHTML = '';
+    btnMerge.disabled = true;
+    return;
+  }
+
+  if (lN > 0 && rTotal >= lN) {
+    el.innerHTML = `<span class="ok">✓ ${lN} párů</span>`;
+    btnMerge.disabled = false;
+  } else if (lN > 0 && rTotal > 0 && rTotal < lN) {
+    el.innerHTML = `<span class="warn">⚠ pravá strana: ${rTotal} &lt; ${lN}</span>`;
+    btnMerge.disabled = true;
+  } else {
+    el.innerHTML = `L:${lN} &nbsp; R:${rTotal}`;
+    btnMerge.disabled = true;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MERGE
+═══════════════════════════════════════════════════════════════════ */
+
+function doMerge() {
+  const result = leftGames.map((lg, i) => {
+    const rg = rightGames[i];
+
+    // Tags: start with all left tags (they are the authoritative headers)
+    const tags = { ...lg.tags };
+
+    // From right: keep only ECO if present
+    if (rg && !rg.isEmpty && rg.tags && rg.tags.ECO) {
+      tags.ECO = rg.tags.ECO;
+    } else {
+      delete tags.ECO;
+    }
+
+    // Result: always from left headers (official result from chess-results)
+    tags.Result = lg.result || '*';
+
+    // Moves: from right if real game, empty if placeholder
+    const moves = (rg && !rg.isEmpty) ? rg.moves : [];
+
+    return { tags, moves, result: tags.Result };
+  });
+
+  mergedPGN = serializeAll(result);
+
+  document.getElementById('result-ta').value     = mergedPGN;
+  document.getElementById('result-info').textContent = `${result.length} partií`;
+  const sec = document.getElementById('result-sec');
+  sec.style.display = 'block';
+  sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  document.getElementById('btn-dl').disabled = false;
+  document.getElementById('btn-cp').disabled = false;
+  toast(`Sloučeno ${result.length} partií`);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════════════════════════════════ */
+
+function doDownload() {
+  if (!mergedPGN) return;
+  const blob = new Blob([mergedPGN], { type: 'application/x-chess-pgn;charset=utf-8' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = suggestFilename();
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function doCopy() {
+  const text = mergedPGN || document.getElementById('result-ta').value;
+  if (!text) return;
+  navigator.clipboard?.writeText(text).then(() => toast('Zkopírováno do schránky'))
+    .catch(() => { document.getElementById('result-ta').select(); document.execCommand('copy'); toast('Zkopírováno'); });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOAD / MUTATE
+═══════════════════════════════════════════════════════════════════ */
+
+function loadLeft(text) {
+  const games = parsePGN(text).slice(0, 20);
+  if (!games.length) return toast('Žádné partie nenalezeny');
+  leftGames = games;
+  renderLeft();
+  updateStatus();
+  resetResult();
+  toast(`Načteno ${games.length} partií (hlavičky)`);
+}
+
+function addRight(text) {
+  const games = parsePGN(text);
+  if (!games.length) return toast('Žádné partie nenalezeny');
+  const avail = 20 - rightGames.length;
+  if (avail <= 0) return toast('Maximum 20 partií dosaženo');
+  const toAdd = games.slice(0, avail);
+  rightGames.push(...toAdd);
+  renderRight();
+  updateStatus();
+  toast(`Přidáno ${toAdd.length} partií`);
+}
+
+function clearLeft() {
+  leftGames = [];
+  renderLeft();
+  updateStatus();
+  resetResult();
+}
+
+function clearRight() {
+  rightGames = [];
+  renderRight();
+  updateStatus();
+}
+
+function removeRight(idx) {
+  rightGames.splice(idx, 1);
+  renderRight();
+  updateStatus();
+}
+
+function insertEmpty(atIdx) {
+  if (rightGames.length >= 20) return toast('Maximum 20 partií');
+  rightGames.splice(atIdx, 0, emptyGame());
+  renderRight();
+  updateStatus();
+}
+
+function resetResult() {
+  document.getElementById('result-sec').style.display = 'none';
+  document.getElementById('btn-dl').disabled = true;
+  document.getElementById('btn-cp').disabled = true;
+  mergedPGN = '';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FILE INPUT
+═══════════════════════════════════════════════════════════════════ */
+
+function onFileLeft(e) {
+  const f = e.target.files[0]; if (!f) return;
+  readFile(f, loadLeft); e.target.value = '';
+}
+function onFileRight(e) {
+  [...e.target.files].forEach(f => readFile(f, addRight)); e.target.value = '';
+}
+function readFile(file, handler) {
+  const r = new FileReader();
+  r.onload  = ev => handler(ev.target.result);
+  r.onerror = ()  => toast('Chyba čtení souboru');
+  r.readAsText(file, 'UTF-8');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DROP ZONES (file from OS)
+═══════════════════════════════════════════════════════════════════ */
+
+function dzListen(id, handler) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('dragover',  e => { e.preventDefault(); el.classList.add('over'); });
+  el.addEventListener('dragleave', ()  => el.classList.remove('over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('over');
+    [...e.dataTransfer.files].forEach(f => readFile(f, handler));
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════════════════════ */
+let _tt = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  if (_tt) clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT — import from bookmarklet (localStorage or URL hash)
+═══════════════════════════════════════════════════════════════════ */
+(function checkImport() {
+  // Channel A: localStorage (same-origin only)
+  try {
+    const stored = localStorage.getItem('pgn_merger_left');
+    if (stored) { localStorage.removeItem('pgn_merger_left'); loadLeft(stored); return; }
+  } catch (_) {}
+
+  // Channel B: URL hash  #pgn=<base64url>
+  const hash = location.hash;
+  if (hash.startsWith('#pgn=')) {
+    try {
+      // base64url → base64 standard
+      const b64 = hash.slice(5).replace(/-/g, '+').replace(/_/g, '/');
+      const text = decodeURIComponent(escape(atob(b64)));
+      loadLeft(text);
+      history.replaceState(null, '', location.pathname);
+    } catch (_) {}
+  }
+})();
+
+dzListen('dz-l', loadLeft);
+dzListen('dz-r', addRight);
+updateStatus();
+</script>
+</body>
+</html>
