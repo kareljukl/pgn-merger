@@ -164,7 +164,7 @@ javascript:(()=>{
       overlay.appendChild(lbl);
       return chk;
     };
-    const chkTeams = mkChk('Zahrnout nazvy druzstev do tagu Event', true);
+    const chkTeams = mkChk('Zahrnout nazvy druzstev do tagu Event', false);
 
     const hint = el('p', 'color:#aaa;font-size:13px;margin:4px 0 18px');
     const updHint = () => {

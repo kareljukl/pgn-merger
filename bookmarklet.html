@@ -6,7 +6,6 @@
 <title>Instalace bookmarkletu – PGN Merger</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
   --bg:      #f0ede8;
   --surface: #ffffff;
@@ -16,202 +15,97 @@
   --dim:     #b0a89e;
   --accent:  #629924;
   --acc-bg:  rgba(98,153,36,.10);
-  --gold:    #9a7c20;
-  --gold-bg: rgba(154,124,32,.10);
+  --gold:    #8a6d10;
+  --gold-bg: rgba(138,109,16,.10);
+  --gold-bdr:rgba(138,109,16,.35);
   --mono:    'Courier New', monospace;
   --r:       5px;
   --max:     720px;
 }
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 14px;
-  line-height: 1.6;
-  background: var(--bg);
-  color: var(--text);
+  font-size: 14px; line-height: 1.6;
+  background: var(--bg); color: var(--text);
 }
-
 header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 20px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 20px; height: 48px; display: flex; align-items: center; gap: 12px;
 }
 header h1 { font-size: 16px; font-weight: 700; }
 header h1 span { color: var(--accent); }
-header a {
-  margin-left: auto;
-  font-size: 12px;
-  color: var(--muted);
-  text-decoration: none;
-}
+header a { margin-left: auto; font-size: 12px; color: var(--muted); text-decoration: none; }
 header a:hover { color: var(--accent); }
+main { max-width: var(--max); margin: 0 auto; padding: 36px 20px 60px; }
+h2 { font-size: 22px; font-weight: 700; margin-bottom: 10px; letter-spacing: -.02em; }
+.lead { font-size: 15px; color: var(--muted); margin-bottom: 32px; line-height: 1.7; }
 
-main {
-  max-width: var(--max);
-  margin: 0 auto;
-  padding: 36px 20px 60px;
-}
-
-h2 {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  letter-spacing: -.02em;
-}
-
-.lead {
-  font-size: 15px;
-  color: var(--muted);
-  margin-bottom: 32px;
-  line-height: 1.7;
-}
-
-/* ── Bookmarklet box ────────────────────────────────────────────── */
 .bm-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 24px;
-  margin-bottom: 32px;
-  text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 28px 24px; margin-bottom: 32px; text-align: center;
 }
-
-.bm-box p {
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 16px;
-}
+.bm-box p { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
 
 .bm-link {
-  display: inline-block;
-  padding: 10px 22px;
-  background: var(--gold-bg);
-  border: 2px solid rgba(154,124,32,.4);
-  border-radius: var(--r);
-  color: var(--gold);
-  font-weight: 700;
-  font-size: 15px;
-  text-decoration: none;
-  cursor: grab;
+  display: inline-block; padding: 11px 26px;
+  background: var(--gold-bg); border: 2px solid var(--gold-bdr);
+  border-radius: var(--r); color: var(--gold); font-weight: 700; font-size: 16px;
+  text-decoration: none; cursor: grab; user-select: none;
   transition: background .12s, border-color .12s;
-  user-select: none;
 }
-.bm-link:hover { background: rgba(154,124,32,.18); border-color: rgba(154,124,32,.6); }
+.bm-link:hover  { background: rgba(138,109,16,.18); border-color: rgba(138,109,16,.55); }
 .bm-link:active { cursor: grabbing; }
+.bm-link.loading { opacity: .45; cursor: wait; pointer-events: none; }
+.bm-link.error   { border-color: #c0392b; color: #c0392b; background: #fdf0ee; cursor: not-allowed; pointer-events: none; }
 
-.bm-note {
-  margin-top: 12px;
-  font-size: 12px;
-  color: var(--dim);
+.bm-note { margin-top: 14px; font-size: 12px; color: var(--dim); line-height: 1.7; }
+#bm-code {
+  display: block; width: 100%; height: 56px; margin-top: 12px;
+  font-family: var(--mono); font-size: 10px;
+  border: 1px solid var(--border); border-radius: 3px; padding: 7px 10px;
+  background: #fafaf8; color: #555; resize: none; line-height: 1.5;
 }
 
-/* ── Steps ──────────────────────────────────────────────────────── */
+.flow {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 18px; margin-bottom: 32px; flex-wrap: wrap;
+}
+.flow-item { text-align: center; font-size: 12px; min-width: 90px; }
+.flow-icon  { font-size: 22px; display: block; margin-bottom: 3px; }
+.flow-label { color: var(--muted); line-height: 1.3; }
+.flow-arrow { color: var(--dim); font-size: 16px; flex-shrink: 0; }
+
 .steps { counter-reset: step; margin-bottom: 32px; }
 .step {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--border);
+  display: flex; gap: 16px;
+  margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--border);
 }
 .step:last-child { border-bottom: none; }
-
 .step-num {
-  counter-increment: step;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--accent);
-  margin-top: 2px;
+  counter-increment: step; width: 30px; height: 30px; flex-shrink: 0;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; color: var(--accent); margin-top: 2px;
 }
 .step-num::before { content: counter(step); }
-
 .step-body h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
 .step-body p  { font-size: 13px; color: var(--muted); }
-.step-body code {
-  font-family: var(--mono);
-  font-size: 12px;
-  background: #f0ede8;
-  border: 1px solid var(--border);
-  padding: 1px 5px;
-  border-radius: 3px;
-  color: var(--text);
+code {
+  font-family: var(--mono); font-size: 12px;
+  background: #f0ede8; border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px;
 }
-
-/* ── Workflow diagram ───────────────────────────────────────────── */
-.flow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 16px 20px;
-  margin-bottom: 32px;
-  flex-wrap: wrap;
-}
-.flow-item {
-  text-align: center;
-  font-size: 12px;
-  min-width: 100px;
-}
-.flow-icon {
-  font-size: 24px;
-  display: block;
-  margin-bottom: 4px;
-}
-.flow-label { color: var(--muted); line-height: 1.3; }
-.flow-arrow {
-  color: var(--dim);
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-/* ── Info box ───────────────────────────────────────────────────── */
 .info-box {
-  background: var(--acc-bg);
-  border: 1px solid rgba(98,153,36,.25);
-  border-radius: var(--r);
-  padding: 14px 18px;
-  font-size: 13px;
-  color: var(--text);
-  line-height: 1.7;
+  background: var(--acc-bg); border: 1px solid rgba(98,153,36,.25);
+  border-radius: var(--r); padding: 14px 18px; font-size: 13px; line-height: 1.7;
 }
 .info-box strong { color: var(--accent); }
-
-hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 36px 0;
-}
-
 .section-title {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--dim);
-  margin-bottom: 16px;
+  font-size: 11px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dim); margin-bottom: 14px;
 }
-
 footer {
-  text-align: center;
-  padding: 24px;
-  font-size: 12px;
-  color: var(--dim);
-  border-top: 1px solid var(--border);
+  text-align: center; padding: 24px; font-size: 12px;
+  color: var(--dim); border-top: 1px solid var(--border);
 }
 footer a { color: var(--accent); text-decoration: none; }
 </style>
@@ -232,145 +126,76 @@ footer a { color: var(--accent); text-decoration: none; }
     se všemi hlavičkami partií kola a přímo jej otevřete v&nbsp;PGN Merger.
   </p>
 
-  <!-- WORKFLOW -->
   <p class="section-title">Jak to funguje</p>
   <div class="flow">
-    <div class="flow-item">
-      <span class="flow-icon">♛</span>
-      <span class="flow-label">chess-results.com<br>stránka kola</span>
-    </div>
+    <div class="flow-item"><span class="flow-icon">♛</span><span class="flow-label">chess-results.com<br>stránka kola</span></div>
     <span class="flow-arrow">→</span>
-    <div class="flow-item">
-      <span class="flow-icon">🔖</span>
-      <span class="flow-label">Kliknete<br>na bookmarklet</span>
-    </div>
+    <div class="flow-item"><span class="flow-icon">🔖</span><span class="flow-label">Kliknete<br>na bookmarklet</span></div>
     <span class="flow-arrow">→</span>
-    <div class="flow-item">
-      <span class="flow-icon">📋</span>
-      <span class="flow-label">Vygeneruje se<br>PGN hlaviček</span>
-    </div>
+    <div class="flow-item"><span class="flow-icon">📋</span><span class="flow-label">Vygeneruje se<br>PGN hlaviček</span></div>
     <span class="flow-arrow">→</span>
-    <div class="flow-item">
-      <span class="flow-icon">🔗</span>
-      <span class="flow-label">Klik „Sloučit<br>s partiemi"</span>
-    </div>
+    <div class="flow-item"><span class="flow-icon">🔗</span><span class="flow-label">Klik „Sloučit<br>s partiemi"</span></div>
     <span class="flow-arrow">→</span>
-    <div class="flow-item">
-      <span class="flow-icon">✓</span>
-      <span class="flow-label">PGN Merger<br>se otevře</span>
-    </div>
+    <div class="flow-item"><span class="flow-icon">✓</span><span class="flow-label">PGN Merger<br>se otevře</span></div>
   </div>
 
-  <!-- BOOKMARKLET LINK -->
   <p class="section-title">Instalace</p>
   <div class="bm-box">
     <p>Přetáhněte toto tlačítko na lištu záložek v&nbsp;prohlížeči:</p>
-    <a class="bm-link" id="bm-anchor" href="#" title="PGN Merger – chess-results">
-      ♟ PGN → Merger
-    </a>
+    <a class="bm-link loading" id="bm-anchor" href="#">♟ PGN → Merger</a>
     <p class="bm-note">
-      Nebo klikněte pravým tlačítkem → <em>Přidat záložku</em> →
+      Nebo klikněte pravým tlačítkem na lištu záložek → <em>Přidat stránku</em> →
       jako URL vložte obsah pole níže.
     </p>
-    <textarea id="bm-code" readonly
-      style="width:100%;height:60px;margin-top:10px;font-family:monospace;font-size:10px;
-             border:1px solid var(--border);border-radius:3px;padding:6px;resize:none;
-             background:#fafaf8;color:#555;line-height:1.4"
-      spellcheck="false"></textarea>
+    <textarea id="bm-code" readonly spellcheck="false">Načítám…</textarea>
   </div>
 
-  <!-- STEP BY STEP -->
   <p class="section-title">Postup použití</p>
   <div class="steps">
     <div class="step">
       <div class="step-num"></div>
       <div class="step-body">
         <h3>Otevřete stránku kola na chess-results.com</h3>
-        <p>
-          Přejděte na stránku se sestavou kola — URL musí obsahovat parametr
-          <code>art=3</code> a číslo kola <code>rd=N</code>.
-          Příklad: <code>tnr1257856.aspx?lan=5&amp;art=3&amp;rd=9</code>
-        </p>
+        <p>URL musí obsahovat parametr <code>art=3</code> a číslo kola <code>rd=N</code>.
+        Příklad: <code>tnr1257856.aspx?lan=5&amp;art=3&amp;rd=9</code></p>
       </div>
     </div>
     <div class="step">
       <div class="step-num"></div>
       <div class="step-body">
         <h3>Klikněte na záložku „PGN → Merger"</h3>
-        <p>
-          Zobrazí se překryvný panel se seznamem zápasů kola.
-          Vyberte konkrétní zápas nebo celé kolo.
-        </p>
+        <p>Zobrazí se panel se seznamem zápasů kola. Vyberte konkrétní zápas nebo celé kolo.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num"></div>
       <div class="step-body">
         <h3>Nastavte název soutěže a vygenerujte PGN</h3>
-        <p>
-          Zkontrolujte předvyplněný název soutěže, zaškrtněte volby
-          a klikněte <em>Generovat PGN</em>.
-          Vygenerované PGN obsahuje všechny hlavičky partií (jména, ELO, týmy, výsledky).
-        </p>
+        <p>Zkontrolujte předvyplněný název soutěže a klikněte <em>Generovat PGN</em>.
+        Vygenerované PGN obsahuje hlavičky všech partií (jména, ELO, týmy, výsledky).</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num"></div>
       <div class="step-body">
         <h3>Klikněte „Sloučit s partiemi (PGN Merger)"</h3>
-        <p>
-          PGN se zakóduje a v novém okně se otevře PGN Merger
-          s hlavičkami předvyplněnými v&nbsp;levém panelu.
-          Do pravého panelu pak přidejte PGN se zahranými tahy.
-        </p>
+        <p>PGN se zakóduje a v novém okně se otevře PGN Merger s hlavičkami předvyplněnými vlevo.
+        Do pravého panelu přidejte PGN se zahranými tahy.</p>
       </div>
     </div>
     <div class="step">
       <div class="step-num"></div>
       <div class="step-body">
         <h3>Sloučte a stáhněte výsledné PGN</h3>
-        <p>
-          Seřaďte partie vpravo přetažením tak, aby odpovídaly pořadí vlevo.
-          Klikněte <em>Zkopíruj hlavičky</em>, zkontrolujte výsledek a stáhněte soubor.
-        </p>
+        <p>Seřaďte partie vpravo přetažením, klikněte <em>Zkopíruj hlavičky</em>
+        a stáhněte soubor.</p>
       </div>
     </div>
   </div>
 
-  <!-- INFO BOX -->
   <div class="info-box">
     <strong>Kompatibilní prohlížeče:</strong> Chrome, Firefox, Edge, Safari (desktop).
     Bookmarklet je testován na chess-results.com s jazykem <strong>CZE</strong> (lan=5).
-    Pro jiné jazykové verze stránky nemusí detekce záhlaví zápasů fungovat správně.
-  </div>
-
-  <hr>
-
-  <p class="section-title">Ruční instalace (alternativa)</p>
-  <div class="steps">
-    <div class="step">
-      <div class="step-num"></div>
-      <div class="step-body">
-        <h3>Zobrazte lištu záložek</h3>
-        <p>Chrome/Edge: <code>Ctrl+Shift+B</code> &nbsp;|&nbsp; Firefox: <code>Ctrl+B</code></p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num"></div>
-      <div class="step-body">
-        <h3>Přidejte novou záložku</h3>
-        <p>Klikněte pravým tlačítkem na lištu záložek → <em>Přidat stránku</em>
-        nebo <em>Nová záložka</em>.</p>
-      </div>
-    </div>
-    <div class="step">
-      <div class="step-num"></div>
-      <div class="step-body">
-        <h3>Jako URL vložte kód z pole výše</h3>
-        <p>Zkopírujte celý text z textového pole (začíná <code>javascript:</code>)
-        a vložte jej do pole URL nové záložky. Jako název nastavte např. <em>PGN → Merger</em>.</p>
-      </div>
-    </div>
   </div>
 
 </main>
@@ -381,41 +206,36 @@ footer a { color: var(--accent); text-decoration: none; }
 </footer>
 
 <script>
-// Inject minified bookmarklet code into the page
-// The full source is chess-results-pgn.js — this is the inline version for the install page.
-// We load it from the same directory and set it as href on the anchor.
-
-(async function() {
-  // Try to load the bookmarklet source from the same directory
+// Načte hotový minifikovaný soubor chess-results-pgn.min.js ze stejného adresáře.
+// Funguje na GitHub Pages (same-origin fetch). Lokálně je třeba spustit přes server,
+// ne přes file:// (Chrome blokuje fetch na file://).
+(async () => {
   const anchor   = document.getElementById('bm-anchor');
   const textarea = document.getElementById('bm-code');
 
   try {
-    const resp = await fetch('chess-results-pgn.js');
-    if (!resp.ok) throw new Error('not found');
-    let code = await resp.text();
+    const resp = await fetch('chess-results-pgn.min.js');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-    // Basic minification: strip comments, collapse whitespace
-    // (keeps the code functional even without a build step)
-    code = code
-      .replace(/^javascript:/, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '')   // block comments
-      .replace(/\/\/.*/g, '')             // line comments
-      .replace(/\n\s*/g, '\n')
-      .replace(/\n+/g, '\n')
-      .trim();
+    let code = (await resp.text()).trim();
 
-    const bm = 'javascript:' + encodeURIComponent(code);
-    anchor.href   = bm;
-    textarea.value = bm;
+    // Přidej prefix javascript: pokud tam ještě není
+    if (!code.startsWith('javascript:')) {
+      code = 'javascript:' + code;
+    }
 
-  } catch (e) {
-    // Fallback: show a placeholder message
-    anchor.href = '#';
-    anchor.style.opacity = '.4';
-    anchor.style.cursor  = 'not-allowed';
-    textarea.value = '// Soubor chess-results-pgn.js nebyl nalezen.\n// Ujistete se, ze oba soubory jsou ve stejnem adresari.';
-    textarea.style.color = '#a04030';
+    anchor.href = code;
+    anchor.classList.remove('loading');
+    textarea.value = code;
+
+  } catch (err) {
+    anchor.textContent = '⚠ Soubor nenalezen';
+    anchor.classList.remove('loading');
+    anchor.classList.add('error');
+    textarea.value =
+      'Chyba: chess-results-pgn.min.js nebyl nalezen.\n' +
+      'Ujistěte se, že soubor je ve stejném adresáři jako bookmarklet.html.\n' +
+      'Poznámka: lokálně musí stránka běžet přes HTTP server (ne file://).';
   }
 })();
 </script>
