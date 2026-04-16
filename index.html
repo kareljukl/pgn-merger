@@ -527,9 +527,10 @@ function parseMovetext(raw) {
       continue;
     }
 
-    // SAN token
-    if (/^([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBN])?[+#]?|O-O-O[+#]?|O-O[+#]?)$/.test(tok)) {
-      moves.push({ number: curNum, color: expectColor, san: tok });
+// SAN token — strip textové anotace (?? !! !? ?! ! ?) přilepené na tah
+    const san = tok.replace(/[?!]+$/, '');
+    if (/^([KQRBN]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBN])?[+#]?|O-O-O[+#]?|O-O[+#]?)$/.test(san)) {
+      moves.push({ number: curNum, color: expectColor, san });
       if (expectColor === 'w') { expectColor = 'b'; }
       else { expectColor = 'w'; curNum++; }
     }
